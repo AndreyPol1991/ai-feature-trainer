@@ -1,0 +1,1489 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Функции на основе ИИ — интерактивный тренажёр</title>
+<meta name="description" content="Постановка ИИ-функции: вероятностная задача, критерии приёмки того, что ошибается, набор для проверки, границы поиска по документам и данные, которые нельзя отдавать модели.">
+<style>
+  :root{
+    --ground:#eaeef4; --surface:#ffffff; --surface-2:#f2f5fa; --surface-3:#e7ecf4;
+    --ink:#16202f; --muted:#586275; --faint:#8894a6; --line:#d4dbe6;
+    --rel:#6b4fd8; --doc:#c06a12; --kv:#7a45cf; --graph:#0d8e7f;
+    --danger:#c62f27; --danger-bg:#fdeceb; --ok:#1c8a4a; --ok-bg:#e9f7ee;
+    --warn:#9a6a00; --warn-bg:#fdf3dc;
+    --accent:var(--rel);
+    --shadow:0 1px 2px rgba(20,30,50,.06), 0 8px 24px rgba(20,30,50,.06);
+    --mono:"Cascadia Code","JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    --r:12px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --ground:#0b101a; --surface:#131b28; --surface-2:#1a2434; --surface-3:#222f42;
+      --ink:#e7edf6; --muted:#98a5ba; --faint:#68758c; --line:#293648;
+      --rel:#a78bfa; --doc:#e8a94b; --kv:#b697f6; --graph:#33cab4;
+      --danger:#ff6f64; --danger-bg:#3a1a18; --ok:#4ed383; --ok-bg:#14301f;
+      --warn:#e8b84b; --warn-bg:#32280f;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"]{
+    --ground:#eaeef4; --surface:#ffffff; --surface-2:#f2f5fa; --surface-3:#e7ecf4;
+    --ink:#16202f; --muted:#586275; --faint:#8894a6; --line:#d4dbe6;
+    --rel:#2f7d8f; --doc:#c06a12; --kv:#7a45cf; --graph:#0d8e7f;
+    --danger:#c62f27; --danger-bg:#fdeceb; --ok:#1c8a4a; --ok-bg:#e9f7ee;
+    --warn:#9a6a00; --warn-bg:#fdf3dc;
+    --shadow:0 1px 2px rgba(20,30,50,.06), 0 8px 24px rgba(20,30,50,.06);
+  }
+  :root[data-theme="dark"]{
+    --ground:#0b101a; --surface:#131b28; --surface-2:#1a2434; --surface-3:#222f42;
+    --ink:#e7edf6; --muted:#98a5ba; --faint:#68758c; --line:#293648;
+    --rel:#4fc8dd; --doc:#e8a94b; --kv:#b697f6; --graph:#33cab4;
+    --danger:#ff6f64; --danger-bg:#3a1a18; --ok:#4ed383; --ok-bg:#14301f;
+    --warn:#e8b84b; --warn-bg:#32280f;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--ground); color:var(--ink); font-family:var(--sans); line-height:1.55; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px; margin:0 auto; padding:0 20px 80px}
+
+  header.top{position:sticky; top:0; z-index:20; background:color-mix(in srgb, var(--ground) 88%, transparent); backdrop-filter:saturate(1.4) blur(8px); border-bottom:1px solid var(--line)}
+  .head-inner{max-width:1080px; margin:0 auto; padding:14px 20px 0}
+  .brand{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
+  h1{font-size:22px; margin:0; letter-spacing:-.02em; font-weight:680}
+  .sub{color:var(--muted); font-size:14px; margin:2px 0 0}
+  .spacer{flex:1 1 auto}
+  .head-meta{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .pill{font:600 11.5px/1 var(--mono); color:var(--muted); border:1px solid var(--line); padding:6px 9px; border-radius:999px; white-space:nowrap}
+  .pill.live{color:var(--ok); border-color:color-mix(in srgb, var(--ok) 50%, var(--line))}
+  .theme{appearance:none; border:1px solid var(--line); background:var(--surface); color:var(--muted); border-radius:8px; padding:6px 10px; font:inherit; font-size:12px; cursor:pointer}
+  .progress{height:5px; background:var(--surface-3); border-radius:999px; margin:10px 0 0; overflow:hidden}
+  .progress > i{display:block; height:100%; background:var(--ok); width:0; transition:width .3s ease}
+
+  .tabs{display:flex; flex-wrap:wrap; gap:3px 2px; margin-top:10px}
+  .tab{appearance:none; border:0; background:transparent; color:var(--muted); font:inherit; font-size:13px; font-weight:560; padding:8px 11px; cursor:pointer; border-bottom:2.5px solid transparent; white-space:nowrap; border-radius:6px 6px 0 0; display:flex; align-items:center; gap:6px}
+  .tab:hover{color:var(--ink); background:var(--surface-2)}
+  .tab .dot{width:9px; height:9px; border-radius:50%; background:var(--line); flex:none}
+  .tab .dot.done{background:var(--ok)}
+  .tab[aria-selected="true"]{color:var(--ink); border-bottom-color:var(--accent)}
+  .tab:focus-visible, button:focus-visible, select:focus-visible, [tabindex]:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+  .panel{display:none; padding-top:24px}
+  .panel.active{display:block; animation:fade .25s ease}
+  @keyframes fade{from{opacity:0; transform:translateY(4px)}to{opacity:1; transform:none}}
+  @media (prefers-reduced-motion:reduce){.panel.active{animation:none}}
+
+  .lead{font-size:15.5px; color:var(--muted); max-width:68ch; margin:0 0 20px}
+  .lead b{color:var(--ink); font-weight:620}
+
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:20px; margin:16px 0; box-shadow:var(--shadow)}
+  .card h2{font-size:17px; margin:0 0 4px; letter-spacing:-.01em; display:flex; align-items:center; gap:9px; flex-wrap:wrap}
+  .card h2 .tag{font:600 11px/1 var(--mono); color:var(--accent); border:1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); padding:4px 7px; border-radius:6px; letter-spacing:.02em}
+  .card > p{color:var(--muted); font-size:14px; margin:6px 0 14px; max-width:72ch}
+  .card > p:last-child{margin-bottom:0}
+  .card--task{border-color:color-mix(in srgb, var(--accent) 40%, var(--line))}
+
+  .two-w{display:grid; grid-template-columns:1fr 1fr; gap:18px}
+  @media (max-width:820px){.two-w{grid-template-columns:1fr}}
+  .ex-h{font:600 11px/1 var(--mono); color:var(--faint); letter-spacing:.04em; text-transform:uppercase; margin-bottom:8px}
+
+  .chips{display:flex; flex-wrap:wrap; gap:8px}
+  .chip{appearance:none; border:1.5px solid var(--line); background:var(--surface-2); color:var(--ink); border-radius:999px; padding:8px 13px; font:inherit; font-size:13.5px; cursor:pointer; min-height:38px}
+  .chip:hover{border-color:var(--accent)}
+  .chip[aria-pressed="true"]{border-color:var(--accent); background:color-mix(in srgb, var(--accent) 14%, var(--surface))}
+  .chip.right{border-color:var(--ok); background:var(--ok-bg)}
+  .chip.wrong{border-color:var(--danger); background:var(--danger-bg)}
+  .chip .mk{font:600 11px/1 var(--mono); margin-left:8px; color:var(--muted)}
+
+  .opts{list-style:none; padding:0; margin:0; display:grid; gap:8px}
+  .opts button{width:100%; text-align:left; background:var(--surface-2); border:1.5px solid var(--line); color:var(--ink); border-radius:10px; padding:11px 13px; font:inherit; font-size:14px; cursor:pointer; min-height:42px; display:flex; gap:10px; align-items:flex-start}
+  .opts button:hover{border-color:var(--accent)}
+  .opts button[aria-pressed="true"]{border-color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, var(--surface))}
+  .opts button.right{border-color:var(--ok); background:var(--ok-bg)}
+  .opts button.wrong{border-color:var(--danger); background:var(--danger-bg)}
+  .opts .mk{font:600 12px/1.4 var(--mono); color:var(--muted); flex:none}
+
+  .match{display:grid; gap:8px}
+  .pair{display:grid; grid-template-columns:1fr 260px; gap:8px; align-items:center}
+  @media (max-width:700px){.pair{grid-template-columns:1fr}}
+  .pair .left{background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:13.5px}
+  select{width:100%; background:var(--surface); color:var(--ink); border:1.5px solid var(--line); border-radius:9px; padding:9px 10px; font:inherit; font-size:13.5px; min-height:40px}
+  select.right{border-color:var(--ok)} select.wrong{border-color:var(--danger)}
+
+  .table-wrap{overflow-x:auto; border:1px solid var(--line); border-radius:10px}
+  table.db{border-collapse:collapse; width:100%; font-size:13.5px}
+  table.db th, table.db td{padding:9px 11px; text-align:left; border-bottom:1px solid var(--line); border-right:1px solid var(--line)}
+  table.db th:last-child, table.db td:last-child{border-right:0}
+  table.db tr:last-child td{border-bottom:0}
+  table.db thead th{background:var(--surface-2); vertical-align:top; font-size:12.5px; color:var(--muted)}
+  table.db tbody tr:hover{background:var(--surface-2)}
+  .cell-btn{appearance:none; width:32px; height:32px; border-radius:8px; border:1.5px solid var(--line); background:var(--surface-2); color:var(--ink); cursor:pointer; font:inherit}
+  .cell-btn[aria-pressed="true"]{border-color:var(--accent); background:color-mix(in srgb, var(--accent) 18%, var(--surface))}
+  .cell-btn.right{border-color:var(--ok); background:var(--ok-bg)}
+  .cell-btn.wrong{border-color:var(--danger); background:var(--danger-bg)}
+  td.mid{text-align:center}
+
+  .console{font:400 12.5px/1.7 var(--mono); background:var(--surface-3); border:1px solid var(--line); border-radius:10px; padding:12px 14px; color:var(--ink); white-space:pre-wrap; overflow-x:auto}
+  .console b{color:var(--accent)}
+  .note{border-left:3px solid var(--accent); background:var(--surface-2); border-radius:0 10px 10px 0; padding:11px 14px; font-size:13.5px; color:var(--muted); margin-top:14px}
+  .note b{color:var(--ink)}
+  .note.ok{border-color:var(--ok); background:var(--ok-bg); color:var(--ink)}
+  .note.bad{border-color:var(--danger); background:var(--danger-bg); color:var(--ink)}
+  .note.warn{border-color:var(--warn); background:var(--warn-bg); color:var(--ink)}
+
+  .form-row{display:flex; gap:9px; flex-wrap:wrap; align-items:center; margin-top:14px}
+  .act{appearance:none; border:1px solid var(--accent); background:var(--accent); color:var(--ground); border-radius:9px; padding:9px 15px; font:inherit; font-size:13.5px; font-weight:600; cursor:pointer; min-height:40px}
+  .act.ghost{background:transparent; color:var(--ink); border-color:var(--line)}
+  .act.ghost:hover{border-color:var(--accent)}
+  .act[disabled]{opacity:.5; cursor:not-allowed}
+  .meta{font:400 12px/1.6 var(--mono); color:var(--faint); margin-top:10px}
+
+  .kv{display:grid; grid-template-columns:auto 1fr; gap:4px 12px; font-size:13px; margin-top:12px}
+  .kv .k{color:var(--faint); font:600 11.5px/1.6 var(--mono)}
+  .kv .v{font-variant-numeric:tabular-nums}
+
+  .slider{width:100%; margin:10px 0 4px}
+  .legend{display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px; color:var(--muted); margin-top:10px}
+  .legend i{width:10px; height:10px; border-radius:3px; display:inline-block; margin-right:5px}
+
+  .lines{font:400 12.5px/1.9 var(--mono); border:1px solid var(--line); border-radius:10px; overflow:hidden}
+  .lines button{display:block; width:100%; text-align:left; border:0; border-bottom:1px solid var(--line); background:var(--surface); color:var(--ink); font:inherit; padding:7px 12px; cursor:pointer}
+  .lines button:last-child{border-bottom:0}
+  .lines button:hover{background:var(--surface-2)}
+  .lines button[aria-pressed="true"]{background:color-mix(in srgb, var(--accent) 14%, var(--surface))}
+  .lines button.right{background:var(--ok-bg)}
+  .lines button.wrong{background:var(--danger-bg)}
+  .lines .src{color:var(--faint); font-size:11px; display:block}
+
+  .steps{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px}
+  .step{border:1.5px solid var(--line); border-radius:9px; padding:8px 12px; font-size:13px; background:var(--surface-2); cursor:pointer; font:inherit}
+  .step[aria-pressed="true"]{border-color:var(--accent); background:color-mix(in srgb, var(--accent) 14%, var(--surface))}
+  .step.done{border-color:var(--ok); background:var(--ok-bg)}
+
+  .next{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap}
+  footer{color:var(--faint); font-size:13px; margin-top:32px; max-width:72ch}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="head-inner">
+    <div class="brand">
+      <div>
+        <h1>Функции на основе ИИ</h1>
+        <p class="sub">Ассистент поддержки магазина «Полка» — ставим задачу и принимаем работу</p>
+      </div>
+      <div class="spacer"></div>
+      <div class="head-meta">
+        <span class="pill" id="score">решено 0 из 13</span>
+        <span class="pill live" id="link" hidden>идёт в профиль навыков</span>
+        <button class="theme" id="theme" type="button">тема: авто</button>
+      </div>
+    </div>
+    <div class="progress"><i id="bar"></i></div>
+    <div class="tabs" role="tablist" id="tabs"></div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ─────────────────────────── ЗАДАЧА ─────────────────────────── -->
+<section class="panel" id="task" role="tabpanel" aria-label="Задача">
+  <p class="lead">«Полка» решила добавить ИИ в поддержку. В списке функций вперемешку то, что модель делает хорошо, и то, что обычный код делает <b>дешевле, быстрее и без ошибок</b>. Первое, что должен уметь аналитик, — отличать одно от другого до начала разработки.</p>
+
+  <div class="card card--task">
+    <h2><span class="tag">ЗАДАНИЕ</span> где нет единственно верного ответа</h2>
+    <div id="t-ai-probabilistic"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="tag">СИМУЛЯТОР</span> один и тот же вопрос десять раз</h2>
+    <p>Задайте вопрос формуле и модели по десять раз. Формула отвечает одинаково всегда; у модели ответ — <b>распределение</b>, и это не дефект, а свойство инструмента.</p>
+    <div class="two-w">
+      <div>
+        <div class="ex-h">что спрашиваем</div>
+        <div class="chips" id="det-chips"></div>
+        <div class="form-row">
+          <button class="act" id="det-run" type="button">Спросить 10 раз</button>
+          <button class="act ghost" id="det-reset" type="button">Сбросить</button>
+        </div>
+        <div class="note" id="det-note"></div>
+      </div>
+      <div>
+        <div class="ex-h">ответы</div>
+        <div class="console" id="det-out">нажмите «Спросить 10 раз»</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card next">
+    <div><b>Дальше →</b> <span class="sub">как переписать «должна корректно отвечать» так, чтобы приёмка стала измерением</span></div>
+    <button class="act go" data-goto="spec" type="button">Перейти →</button>
+  </div>
+</section>
+
+<!-- ─────────────────────────── ТРЕБОВАНИЕ ─────────────────────────── -->
+<section class="panel" id="spec" role="tabpanel" aria-label="Требование">
+  <p class="lead">«Ассистент должен корректно отвечать на вопросы о доставке» — типичная формулировка, по которой невозможно ни принять работу, ни отказать. Требование к вероятностной функции состоит из трёх частей: <b>на чём проверяем, какая доля достаточна и что происходит с остальной долей</b>.</p>
+
+  <div class="card">
+    <h2><span class="tag">КОНСТРУКТОР</span> соберите требование из кусков</h2>
+    <p>Включайте части и смотрите, что получается: можно ли по такому требованию принять работу и о чём будут спорить на приёмке.</p>
+    <div class="two-w">
+      <div>
+        <div class="ex-h">части требования</div>
+        <div class="chips" id="req-chips"></div>
+      </div>
+      <div>
+        <div class="ex-h">как это читается</div>
+        <div class="console" id="req-out"></div>
+        <div class="kv" id="req-kv"></div>
+        <div class="note" id="req-note"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card--task">
+    <h2><span class="tag">ЗАДАНИЕ</span> проверяемая формулировка</h2>
+    <div id="t-ai-requirement"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="tag">СИМУЛЯТОР</span> вопрос, на который ответа нет</h2>
+    <p>Покупатель спрашивает про возврат товара, купленного по акции три месяца назад. В базе знаний такого правила нет. Выберите поведение и посмотрите, чем кончится разговор.</p>
+    <div class="two-w">
+      <div>
+        <div class="ex-h">что делает ассистент</div>
+        <div class="chips" id="fb-chips"></div>
+        <div class="note" id="fb-note"></div>
+      </div>
+      <div>
+        <div class="ex-h">диалог и последствия</div>
+        <div class="console" id="fb-out"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card--task">
+    <h2><span class="tag">ЗАДАНИЕ</span> поведение при неуверенном ответе</h2>
+    <div id="t-ai-fallback"></div>
+  </div>
+
+  <div class="card next">
+    <div><b>Дальше →</b> <span class="sub">порог качества: ручка между двумя видами ошибки</span></div>
+    <button class="act go" data-goto="threshold" type="button">Перейти →</button>
+  </div>
+</section>
+
+<!-- ─────────────────────────── ПОРОГ ─────────────────────────── -->
+<section class="panel" id="threshold" role="tabpanel" aria-label="Порог">
+  <p class="lead">Ассистент помечает обращения как претензии и поднимает их наверх очереди. Он ошибается двумя способами, и <b>настройка порога — это выбор между ними</b>, а не улучшение обеих сразу. Выбор делается по цене последствий.</p>
+
+  <div class="card card--task">
+    <h2><span class="tag">ЗАДАНИЕ</span> два вида ошибки</h2>
+    <div id="t-ai-error-kinds"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="tag">СИМУЛЯТОР</span> порог на 400 обращениях</h2>
+    <p>Двигайте порог уверенности. Слева — что происходит с пропусками и ложными срабатываниями, справа — во что это обходится за неделю.</p>
+    <input class="slider" id="th-slider" type="range" min="10" max="95" step="5" value="50" aria-label="Порог уверенности">
+    <div class="two-w">
+      <div>
+        <div class="ex-h">что считаем дорогим</div>
+        <div class="chips" id="th-cost"></div>
+        <div class="note" id="th-note"></div>
+      </div>
+      <div>
+        <div class="ex-h">результат на неделе</div>
+        <div class="console" id="th-out"></div>
+        <div class="kv" id="th-kv"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card--task">
+    <h2><span class="tag">ЗАДАНИЕ</span> критерий приёмки</h2>
+    <div id="t-ai-threshold"></div>
+  </div>
+
+  <div class="card card--task">
+    <h2><span class="tag">ЗАДАНИЕ</span> в какую сторону двигать порог</h2>
+    <div id="t-ai-cost-of-error"></div>
+  </div>
+
+  <div class="card next">
+    <div><b>Дальше →</b> <span class="sub">набор примеров: чем демонстрация отличается от проверки</span></div>
+    <button class="act go" data-goto="evals" type="button">Перейти →</button>
+  </div>
+</section>
+
+<!-- ─────────────────────────── НАБОР ─────────────────────────── -->
+<section class="panel" id="evals" role="tabpanel" aria-label="Набор примеров">
+  <p class="lead">Демонстрация прошла отлично, через неделю после запуска поддержка прислала тридцать неверных ответов. Дело не в количестве примеров, а в отборе: <b>придуманные командой вопросы систематически проще реальных</b>.</p>
+
+  <div class="card card--task">
+    <h2><span class="tag">ЗАДАНИЕ</span> почему демонстрация ничего не доказывает</h2>
+    <div id="t-ai-ten-answers"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="tag">СИМУЛЯТОР</span> поймает ли ваш набор поломку</h2>
+    <p>Соберите набор из типов примеров, а потом выкатите одну из трёх «поломок» новой версии. Симулятор покажет, заметит ли её ваш набор до релиза.</p>
+    <div class="two-w">
+      <div>
+        <div class="ex-h">что кладём в набор</div>
+        <div class="chips" id="set-chips"></div>
+        <div class="ex-h" style="margin-top:14px">что сломалось в новой версии</div>
+        <div class="chips" id="set-bug"></div>
+      </div>
+      <div>
+        <div class="ex-h">прогон перед выкаткой</div>
+        <div class="console" id="set-out"></div>
+        <div class="kv" id="set-kv"></div>
+        <div class="note" id="set-note"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card--task">
+    <h2><span class="tag">ЗАДАНИЕ</span> из чего состоит набор</h2>
+    <div id="t-ai-goldenset"></div>
+  </div>
+
+  <div class="card card--task">
+    <h2><span class="tag">ЗАДАНИЕ</span> трудные случаи</h2>
+    <div id="t-ai-hard-cases"></div>
+  </div>
+
+  <div class="card next">
+    <div><b>Дальше →</b> <span class="sub">откуда берутся факты: поиск по документам и его границы</span></div>
+    <button class="act go" data-goto="sources" type="button">Перейти →</button>
+  </div>
+</section>
+
+<!-- ─────────────────────────── ИСТОЧНИКИ ─────────────────────────── -->
+<section class="panel" id="sources" role="tabpanel" aria-label="Источники">
+  <p class="lead">Факты о магазине — сроки, тарифы, правила возврата — модель не знает и знать не может. Если она на них отвечает без документа, она их <b>придумывает, и звучит это убедительно</b>. Ниже видно, как один и тот же вопрос ведёт себя при разном составе источников.</p>
+
+  <div class="card card--task">
+    <h2><span class="tag">ЗАДАНИЕ</span> из документов или из модели</h2>
+    <div id="t-ai-source-or-model"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="tag">СИМУЛЯТОР</span> ассистент отвечает по документам</h2>
+    <p>Включите источники, выберите вопрос — и посмотрите, что найдётся и что окажется в ответе.</p>
+    <div class="two-w">
+      <div>
+        <div class="ex-h">источники</div>
+        <div class="chips" id="rag-src"></div>
+        <div class="ex-h" style="margin-top:14px">вопрос покупателя</div>
+        <div class="chips" id="rag-q"></div>
+      </div>
+      <div>
+        <div class="ex-h">что произойдёт</div>
+        <div class="console" id="rag-out"></div>
+        <div class="note" id="rag-note"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card--task">
+    <h2><span class="tag">ЗАДАНИЕ</span> состав источников</h2>
+    <div id="t-ai-sources"></div>
+  </div>
+
+  <div class="card next">
+    <div><b>Дальше →</b> <span class="sub">что именно уходит во внешнюю модель и чего там быть не должно</span></div>
+    <button class="act go" data-goto="data" type="button">Перейти →</button>
+  </div>
+</section>
+
+<!-- ─────────────────────────── ДАННЫЕ ─────────────────────────── -->
+<section class="panel" id="data" role="tabpanel" aria-label="Данные">
+  <p class="lead">«Мы отправляем только вопрос покупателя» — так отвечают почти всегда, и почти всегда это неправда. Наружу уходит <b>весь запрос целиком</b>: инструкция, найденные фрагменты, история и подставленный контекст.</p>
+
+  <div class="card card--task">
+    <h2><span class="tag">ЗАДАНИЕ</span> что уходит наружу</h2>
+    <div id="t-ai-data-out"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="tag">КОНСТРУКТОР</span> соберите запрос и посмотрите, что уедет</h2>
+    <p>Включайте куски запроса и маскирование. Справа — то, что реально уйдёт в чужой сервис, и оценка риска.</p>
+    <div class="two-w">
+      <div>
+        <div class="ex-h">что кладём в запрос</div>
+        <div class="chips" id="out-chips"></div>
+        <div class="ex-h" style="margin-top:14px">обработка перед отправкой</div>
+        <div class="chips" id="mask-chips"></div>
+      </div>
+      <div>
+        <div class="ex-h">уходит во внешнюю модель</div>
+        <div class="console" id="out-out"></div>
+        <div class="kv" id="out-kv"></div>
+        <div class="note" id="out-note"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card--task">
+    <h2><span class="tag">ЗАДАНИЕ</span> чего в запросе быть не должно</h2>
+    <div id="t-ai-data-forbidden"></div>
+  </div>
+
+  <div class="card next">
+    <div><b>Итог.</b> <span class="sub">решённые задания уходят в профиль навыков, когда тренажёр открыт внутри платформы</span></div>
+    <button class="act ghost go" data-goto="task" type="button">← В начало</button>
+  </div>
+</section>
+
+<footer>
+  Сценарий вымышленный. Тренажёр не про устройство моделей, а про то, как ставить задачу и
+  принимать работу у функции, которая ошибается по своей природе.
+</footer>
+</div>
+
+<script>
+/*
+  Мост к платформе.
+
+  Тренажёр живёт на своём домене и общается с платформой сообщениями. Наружу
+  уходит только факт: «решено задание X, с такой-то попытки, с таким-то числом
+  подсказок». Что это задание подтверждает в графе навыков, решает платформа —
+  иначе привязка к модели оценки жила бы в чужом репозитории.
+
+  Первое сообщение уходит всем («*»): адрес платформы тренажёру неизвестен, он
+  меняется от стенда к стенду. Дальше запоминается источник ответа, и всё
+  остальное шлётся уже точно ему. В сообщениях нет ничего, кроме кодов заданий.
+
+  Без платформы всё работает так же — просто некому отчитываться.
+*/
+const PROTOCOL = 'trainer/1';
+const TRAINER = 'aiFeature';
+
+const bridge = {
+  embedded: window.parent !== window,
+  target: '*',
+  send(message){
+    if (!this.embedded) return;
+    window.parent.postMessage({ protocol: PROTOCOL, trainer: TRAINER, ...message }, this.target);
+  },
+  solved(task, attempts, hints){ this.send({ kind: 'solved', task, attempts, hints }); },
+};
+
+window.addEventListener('message', (event) => {
+  const data = event.data;
+  if (typeof data !== 'object' || data === null || data.protocol !== PROTOCOL) return;
+
+  if (data.kind === 'hello') {
+    bridge.target = event.origin;
+    document.getElementById('link').hidden = false;
+    for (const id of Array.isArray(data.solved) ? data.solved : []) {
+      progressOf(id).done = true;
+    }
+    save(); paintAll();
+  }
+
+  if (data.kind === 'accepted') {
+    progressOf(data.task).accepted = true;
+    save(); paintAll();
+  }
+});
+
+/* ── Задания ──────────────────────────────────────────────────────────
+   Код задания и число подсказок обязаны совпадать с манифестом в
+   платформе: задание, о котором она не знает, не засчитается, а лишняя
+   ступень подсказки отбросит сообщение целиком.
+*/
+/* ── Задания ──────────────────────────────────────────────────────────
+   Код задания и число подсказок обязаны совпадать с манифестом в
+   платформе: задание, о котором она не знает, не засчитается, а лишняя
+   ступень подсказки отбросит сообщение целиком.
+*/
+const TASKS = [
+  {
+    id: 'ai-probabilistic', panel: 'task', kind: 'multi',
+    prompt: 'Отметьте задачи, у которых нет единственно верного ответа.',
+    options: [
+      { text: 'Определить тему обращения покупателя', right: true },
+      { text: 'Составить черновик ответа оператору', right: true },
+      { text: 'Понять по переписке, злится покупатель или нет', right: true },
+      { text: 'Кратко пересказать переписку из сорока сообщений', right: true },
+      { text: 'Посчитать стоимость доставки по весу и адресу', right: false },
+      { text: 'Найти заказ по номеру', right: false },
+      { text: 'Проверить, что в адресе почты есть собака и точка', right: false },
+      { text: 'Вернуть остаток товара на складе', right: false },
+    ],
+    hints: [],
+    explain: 'Признак простой: можно ли заранее назвать единственно верный ответ и проверить его сравнением. Стоимость доставки считается формулой — результат либо верный, либо это дефект. Тема обращения верна с какой-то вероятностью: два оператора и сами разметят часть обращений по-разному. Ставить вероятностную функцию туда, где есть формула, — менять предсказуемость на расходы и ошибки.',
+  },
+  {
+    id: 'ai-requirement', panel: 'spec', kind: 'single',
+    prompt: 'Какая формулировка требования делает приёмку возможной?',
+    options: [
+      { text: 'На наборе из 200 реальных вопросов о доставке ассистент даёт ответ, совпадающий по смыслу с правилами магазина, не менее чем в 90% случаев; в остальных — отвечает «не знаю» и передаёт оператору, а не выдумывает.', right: true },
+      { text: 'Ассистент отвечает на вопросы о доставке корректно и полно, без фактических ошибок.', right: false },
+      { text: 'Ассистент использует модель последнего поколения и базу знаний магазина.', right: false },
+      { text: 'Ответы ассистента проверяет оператор перед отправкой покупателю.', right: false },
+    ],
+    hints: [
+      'Спросите себя: как двое людей, глядя на готовую функцию, придут к одному выводу — принято или нет? Что они для этого сделают руками?',
+      'Требование к вероятностной функции состоит из трёх частей: на чём проверяем, какая доля верного достаточна и что происходит с остальной долей. Без третьей части оставшиеся проценты превращаются в уверенную выдумку.',
+    ],
+    explain: 'Проверка оператором — не требование к функции, а способ обойтись без него: вопрос «работает ли ассистент» остаётся без ответа. «Модель последнего поколения» задаёт решение вместо результата. «Корректно и полно» непроверяемо. Рабочая формулировка называет набор, порог и поведение ниже порога — и приёмка становится измерением, а не спором.',
+  },
+  {
+    id: 'ai-fallback', panel: 'spec', kind: 'multi',
+    prompt: 'Что должно быть описано в требовании о поведении при неуверенном ответе?',
+    options: [
+      { text: 'Признак, по которому ответ считается неуверенным, и что с ним делать', right: true },
+      { text: 'Передача оператору вместе с вопросом и найденными фрагментами', right: true },
+      { text: 'Прямая формулировка «не нашёл правила для этого случая» вместо догадки', right: true },
+      { text: 'Запись таких случаев: по ним пополняется база знаний', right: true },
+      { text: 'Повторный запрос к модели с той же формулировкой', right: false },
+      { text: 'Ответ с самой высокой уверенностью из нескольких — какой-то же надо дать', right: false },
+      { text: 'Извинение и предложение позвонить в колл-центр без передачи контекста', right: false },
+    ],
+    hints: [
+      'Отказ — это тоже ответ, и его надо спроектировать так же тщательно, как удачный случай.',
+      'Проверьте каждый вариант вопросом: помогает ли он покупателю продвинуться? Повтор того же запроса даст тот же ответ, «позвоните нам» перекладывает работу обратно на человека, потерявшего время.',
+    ],
+    explain: 'Вероятностная функция ошибается по устройству, а не по недосмотру, — значит, поведение при ошибке часть постановки. Три обязательных куска: как система понимает, что не уверена; что она говорит человеку; куда уходит случай. Последний пункт превращает отказы в актив: список того, чего нет в базе знаний, — готовый план её пополнения.',
+  },
+  {
+    id: 'ai-error-kinds', panel: 'threshold', kind: 'match',
+    prompt: 'Сопоставьте случай с видом ошибки.',
+    choices: ['Пропустил нужное', 'Сработал там, где не надо'],
+    pairs: [
+      { left: 'Обращение о непоступившем возврате денег осталось в общей очереди на два дня', right: 'Пропустил нужное' },
+      { left: 'Вопрос «а есть ли этот свитер в синем» ушёл в срочные и занял место', right: 'Сработал там, где не надо' },
+      { left: 'Жалоба на испорченный товар не распознана как претензия', right: 'Пропустил нужное' },
+      { left: 'Благодарность «спасибо, всё пришло» помечена как претензия', right: 'Сработал там, где не надо' },
+    ],
+    hints: [],
+    explain: 'Виды ошибки разделяют потому, что у них разная цена, и настройка порога — выбор между ними, а не улучшение обеих сразу. Пропущенная претензия стоит потерянного покупателя; лишнее срочное — минуты работы оператора. Требование, где сказано только «точность не ниже 90%», этот выбор скрывает, а в нём вся суть.',
+  },
+  {
+    id: 'ai-threshold', panel: 'threshold', kind: 'single',
+    prompt: 'Какой критерий приёмки написан правильно?',
+    options: [
+      { text: 'На размеченном наборе из 500 обращений за последний квартал: доля верно отнесённых к «претензия» не ниже 95%, доля ошибочно отнесённых к «претензия» не выше 10%. Набор зафиксирован, версия лежит в репозитории.', right: true },
+      { text: 'Точность модели не ниже 95% по метрике, выбранной разработкой.', right: false },
+      { text: 'На демонстрации из двадцати обращений не должно быть ни одной ошибки.', right: false },
+      { text: 'Доля верных ответов не ниже 95% на обращениях, поступивших в день приёмки.', right: false },
+    ],
+    hints: [
+      'Критерий должен быть воспроизводимым: через месяц другой человек обязан получить то же число, не переспрашивая.',
+      'Меняющийся поток обращений в день приёмки даёт разный результат каждый день; двадцать примеров не различают 95% и 75%; «метрика на усмотрение разработки» позволяет выбрать ту, где цифра красивее.',
+    ],
+    explain: 'Три свойства делают критерий рабочим: зафиксированный набор — иначе результат не повторить; оба вида ошибки — иначе порог двигают в одну сторону и получают бесполезную функцию (пометить все обращения претензиями значит не пропустить ни одной); и размер набора, достаточный, чтобы разница была видна.',
+  },
+  {
+    id: 'ai-cost-of-error', panel: 'threshold', kind: 'match',
+    prompt: 'Сопоставьте функцию с тем, как настраивается порог.',
+    choices: ['Лучше лишний раз сработать: пропуск дороже', 'Лучше промолчать: ложное срабатывание дороже'],
+    pairs: [
+      { left: 'Пометка обращения как жалобы на качество товара', right: 'Лучше лишний раз сработать: пропуск дороже' },
+      { left: 'Автоматическая отмена заказа по просьбе в переписке', right: 'Лучше промолчать: ложное срабатывание дороже' },
+      { left: 'Подъём наверх очереди обращения о непоступивших деньгах', right: 'Лучше лишний раз сработать: пропуск дороже' },
+      { left: 'Автоматический возврат денег без участия оператора', right: 'Лучше промолчать: ложное срабатывание дороже' },
+    ],
+    hints: ['Спросите про каждый случай: что произойдёт при ошибке и кто это будет разгребать — оператор за минуту или бухгалтерия за неделю.'],
+    explain: 'Порог — ручка между двумя видами ошибки, и крутят её по цене последствий. Практическое следствие: у каждой ИИ-функции в требовании названа цена обеих ошибок словами — «пропущенная жалоба стоит покупателя, лишний подъём стоит минуты оператора». Из этой пары фраз порог выводится сам.',
+  },
+  {
+    id: 'ai-ten-answers', panel: 'evals', kind: 'single',
+    prompt: 'Демонстрация прошла отлично, а после запуска посыпались ошибки. В чём причина расхождения?',
+    options: [
+      { text: 'Вопросы для демонстрации придумывали те, кто знает систему, и брали типичные случаи; поток покупателей состоит из другого', right: true },
+      { text: 'Модель ухудшилась после запуска под нагрузкой', right: false },
+      { text: 'На демонстрации использовалась другая версия базы знаний', right: false },
+      { text: 'Двенадцать вопросов — мало, нужно было тридцать', right: false },
+    ],
+    hints: [],
+    explain: 'Дело не в количестве, а в отборе: придуманные примеры систематически проще реальных. В них нет опечаток, оборванных фраз, двух вопросов в одном сообщении и требований, которых в правилах магазина нет вовсе. Увеличение числа придуманных примеров не помогает — они все из лёгкой части потока.',
+  },
+  {
+    id: 'ai-goldenset', panel: 'evals', kind: 'multi',
+    prompt: 'Отметьте то, что должно быть в наборе для проверки.',
+    options: [
+      { text: 'Настоящие обращения покупателей, а не придуманные', right: true },
+      { text: 'Ожидаемый ответ или верная категория для каждого примера', right: true },
+      { text: 'Трудные и пограничные случаи, а не только типичные', right: true },
+      { text: 'Случаи, на которые правильный ответ — «не знаю, передаю оператору»', right: true },
+      { text: 'Фиксированная версия набора, хранящаяся рядом с кодом', right: true },
+      { text: 'Только те обращения, на которых функция уже отвечает верно', right: false },
+      { text: 'Обращения с персональными данными покупателей как есть', right: false },
+    ],
+    hints: [
+      'Набор нужен, чтобы ловить ухудшения. Что должно в нём быть, чтобы ухудшение стало заметным?',
+      'Примеры, где верный ответ — отказ, так же важны, как удачные: без них функция, научившаяся отвечать на всё подряд, покажет отличный результат.',
+    ],
+    explain: 'Три вещи ломают набор чаще всего: в него попадают только удачные случаи; нет примеров с правильным отказом, и функция получает хорошую оценку за уверенные выдумки; набор живёт в чьей-то таблице и меняется от прогона к прогону. И отдельно: перед тем как класть настоящие обращения в репозиторий, из них убирают имена, телефоны и адреса.',
+  },
+  {
+    id: 'ai-hard-cases', panel: 'evals', kind: 'multi',
+    prompt: 'Отметьте случаи, без которых набор ничего не покажет.',
+    options: [
+      { text: 'Два разных вопроса в одном сообщении', right: true },
+      { text: 'Ссылка на прошлую переписку: «как в прошлый раз»', right: true },
+      { text: 'Вопрос о том, чего в правилах магазина нет', right: true },
+      { text: 'Сообщение с опечатками и без знаков препинания', right: true },
+      { text: 'Просьба, которую нельзя выполнить: вернуть деньги через год', right: true },
+      { text: 'Стандартный вопрос «когда придёт заказ №12345»', right: false },
+      { text: 'Вопрос, повторяющий формулировку из базы знаний слово в слово', right: false },
+    ],
+    hints: ['Трудный случай — не редкий, а тот, где функция принимает решение на границе: не хватает данных, вопросов несколько, ответа не существует.'],
+    explain: 'Средняя доля верных ответов по лёгкому набору — самая утешительная и самая бесполезная цифра. Полезнее разрез: качество отдельно по типичным обращениям и отдельно по трудным. 96% в среднем при 60% на пограничных означает, что функция подводит ровно там, где человеку нужнее всего.',
+  },
+  {
+    id: 'ai-source-or-model', panel: 'sources', kind: 'multi',
+    prompt: 'Отметьте вопросы, ответ на которые обязан браться из документов магазина.',
+    options: [
+      { text: 'Сколько дней на возврат товара, купленного по акции', right: true },
+      { text: 'Есть ли доставка в Иркутск и сколько она стоит', right: true },
+      { text: 'Можно ли вернуть вскрытую упаковку наушников', right: true },
+      { text: 'Какой срок гарантии на этот чайник', right: true },
+      { text: 'Как вежливо переформулировать готовый ответ оператора', right: false },
+      { text: 'Сделать короче длинное письмо покупателю, не меняя смысла', right: false },
+    ],
+    hints: [],
+    explain: 'Граница проходит по природе вопроса: факт о нашем магазине против работы с текстом. Сроки, тарифы, правила и гарантии — факты, которых в модели нет; если она на них отвечает, она их придумывает. Отсюда требование: у фактических ответов нужна ссылка на фрагмент документа, а ответ без найденного фрагмента не выдаётся вовсе.',
+  },
+  {
+    id: 'ai-sources', panel: 'sources', kind: 'multi',
+    prompt: 'Отметьте то, что должно войти в источники ассистента поддержки.',
+    options: [
+      { text: 'Правила возврата и обмена', right: true },
+      { text: 'Тарифы и сроки доставки по городам', right: true },
+      { text: 'Карточки товаров с характеристиками и гарантией', right: true },
+      { text: 'Статус конкретного заказа — запросом в систему, а не документом', right: true },
+      { text: 'Переписка сотрудников в рабочем чате', right: false },
+      { text: 'Договоры с поставщиками и закупочные цены', right: false },
+      { text: 'Обращения других покупателей с их данными', right: false },
+    ],
+    hints: [
+      'Спросите про каждый документ: если его фрагмент дословно попадёт в ответ покупателю — это нормально?',
+      'Статус заказа меняется каждый час. Документ, который устаревает быстрее, чем обновляется поиск, лучше не класть в источники, а спрашивать у системы в момент ответа.',
+    ],
+    explain: 'В источники идёт только то, что не страшно увидеть в ответе дословно: фрагмент найденного документа рано или поздно попадает в ответ целиком. Второе правило — про свежесть: меняющиеся данные берутся запросом, а не поиском по копии. И третье: у ассистента есть граница знаний, и она называется прямо.',
+  },
+  {
+    id: 'ai-data-out', panel: 'data', kind: 'multi',
+    prompt: 'Отметьте всё, что уходит во внешнюю модель при обычном ответе ассистента.',
+    options: [
+      { text: 'Текст вопроса покупателя целиком, как он написан', right: true },
+      { text: 'Найденные фрагменты документов, приложенные к запросу', right: true },
+      { text: 'Системная инструкция: как отвечать, что можно и чего нельзя', right: true },
+      { text: 'История диалога, если она прикладывается для контекста', right: true },
+      { text: 'Данные о заказе, подставленные в запрос: номер, состав, адрес', right: true },
+      { text: 'Вся база знаний магазина', right: false },
+      { text: 'База данных заказов', right: false },
+    ],
+    hints: [],
+    explain: 'Наружу уходит ровно то, что положено в запрос, — и обычно это заметно больше, чем «вопрос покупателя». Отсюда два вопроса, которые аналитик задаёт до запуска: что именно попадает в запрос в каждом сценарии и что поставщик модели делает с полученным — хранит ли, как долго, использует ли для обучения. Ответ на второй лежит в договоре, а не в документации.',
+  },
+  {
+    id: 'ai-data-forbidden', panel: 'data', kind: 'multi',
+    prompt: 'Отметьте то, что нельзя отправлять во внешнюю модель.',
+    options: [
+      { text: 'Полный номер банковской карты покупателя', right: true },
+      { text: 'Паспортные данные из заявления на возврат', right: true },
+      { text: 'Фамилия, телефон и точный адрес вместе', right: true },
+      { text: 'Внутренние документы с закупочными ценами', right: true },
+      { text: 'Учётные данные и ключи доступа из переписки с покупателем', right: true },
+      { text: 'Номер заказа', right: false },
+      { text: 'Город доставки без улицы и дома', right: false },
+      { text: 'Название и характеристики товара', right: false },
+    ],
+    hints: [
+      'Вопрос к каждому полю: нужно ли оно, чтобы ответить на вопрос покупателя? Город нужен для срока доставки, а квартира — нет.',
+      'Покупатель мог прислать лишнее сам: скан паспорта в чате, номер карты в тексте. Значит, чистка нужна не только на подстановке контекста, но и на самом сообщении — до отправки.',
+    ],
+    explain: 'Требование состоит из двух половин. Первая: в запрос подставляется минимум — город вместо полного адреса, номер заказа вместо состава с именем получателя. Вторая, о которой забывают: очистка того, что прислал сам человек. Если сообщение уходит в модель как есть, туда уходят и номера карт, и сканы документов.',
+  },
+];
+
+const byId = Object.fromEntries(TASKS.map((t) => [t.id, t]));
+
+/* ── Состояние ───────────────────────────────────────────────────────── */
+
+const STORAGE = 'ai-feature-trainer.v2';
+let state = load();
+const answer = {};   // выбранное человеком по каждому заданию
+const verdict = {};  // 'ok' | 'bad' | undefined
+
+function load(){
+  try { const raw = localStorage.getItem(STORAGE); return raw === null ? {} : JSON.parse(raw); }
+  catch { return {}; }
+}
+function save(){
+  try { localStorage.setItem(STORAGE, JSON.stringify(state)); } catch { /* приватный режим */ }
+}
+function progressOf(id){
+  if (state[id] === undefined) state[id] = { attempts: 0, hints: 0, done: false, accepted: false };
+  return state[id];
+}
+
+/* ── Вкладки ─────────────────────────────────────────────────────────── */
+
+const PANELS = [
+  { id: 'task', name: 'Задача' },
+  { id: 'spec', name: 'Требование' },
+  { id: 'threshold', name: 'Порог' },
+  { id: 'evals', name: 'Набор примеров' },
+  { id: 'sources', name: 'Источники' },
+  { id: 'data', name: 'Данные и модель' },
+];
+
+let active = location.hash.slice(1) || 'task';
+if (!PANELS.some((p) => p.id === active)) active = 'task';
+
+function paintTabs(){
+  const box = document.getElementById('tabs');
+  box.replaceChildren();
+
+  for (const panel of PANELS) {
+    const tasks = TASKS.filter((t) => t.panel === panel.id);
+    const done = tasks.every((t) => progressOf(t.id).done) && tasks.length > 0;
+
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'tab';
+    tab.setAttribute('role', 'tab');
+    tab.setAttribute('aria-selected', panel.id === active ? 'true' : 'false');
+    tab.dataset.focus = 'tab:' + panel.id;
+
+    const dot = document.createElement('span');
+    dot.className = done ? 'dot done' : 'dot';
+    tab.append(dot, document.createTextNode(panel.name));
+    tab.addEventListener('click', () => show(panel.id));
+    box.append(tab);
+  }
+}
+
+function show(id){
+  active = id;
+  history.replaceState(null, '', '#' + id);
+  for (const panel of PANELS) {
+    document.getElementById(panel.id).classList.toggle('active', panel.id === id);
+  }
+  paintTabs();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+for (const button of document.querySelectorAll('.go')) {
+  button.addEventListener('click', () => show(button.dataset.goto));
+}
+
+/* ── Тема ────────────────────────────────────────────────────────────── */
+
+const THEMES = ['авто', 'светлая', 'тёмная'];
+let theme = localStorage.getItem('ai-feature-trainer.theme') || 'авто';
+
+function paintTheme(){
+  const root = document.documentElement;
+  if (theme === 'авто') root.removeAttribute('data-theme');
+  else root.setAttribute('data-theme', theme === 'светлая' ? 'light' : 'dark');
+  document.getElementById('theme').textContent = 'тема: ' + theme;
+}
+document.getElementById('theme').addEventListener('click', () => {
+  theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+  localStorage.setItem('ai-feature-trainer.theme', theme);
+  paintTheme();
+});
+paintTheme();
+
+/* ── Отрисовка заданий ───────────────────────────────────────────────── */
+
+function el(tag, props = {}, children = []){
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(props)) {
+    if (key === 'class') node.className = value;
+    else if (key === 'text') node.textContent = value;
+    else if (key === 'html') node.innerHTML = value;
+    else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+    else if (value !== null && value !== false && value !== undefined) node.setAttribute(key, value === true ? '' : value);
+  }
+  for (const child of children) node.append(child);
+  return node;
+}
+
+function focusKey(){
+  const node = document.activeElement;
+  // Проверяем способность, а не тип: в разных средах activeElement бывает
+  // и null, и undefined, и телом документа — падать на этом нельзя.
+  return node && typeof node.getAttribute === 'function' ? node.getAttribute('data-focus') : null;
+}
+function restoreFocus(key){
+  if (key === null) return;
+  const back = document.querySelector('[data-focus="' + key + '"]');
+  if (back !== null) back.focus();
+}
+
+function selectionOf(task){
+  if (answer[task.id] === undefined) {
+    answer[task.id] = task.kind === 'match' ? {} : new Set();
+  }
+  return answer[task.id];
+}
+
+function isRight(task){
+  const picked = selectionOf(task);
+
+  if (task.kind === 'single' || task.kind === 'multi' || task.kind === 'lines') {
+    const right = new Set(task.options.map((o, i) => (o.right ? i : -1)).filter((i) => i >= 0));
+    if (picked.size !== right.size) return false;
+    for (const index of picked) if (!right.has(index)) return false;
+    return true;
+  }
+  if (task.kind === 'match') {
+    return task.pairs.every((pair, index) => picked[index] === pair.right);
+  }
+  if (task.kind === 'grid') {
+    for (let r = 0; r < task.rows.length; r += 1) {
+      for (let c = 0; c < task.cols.length; c += 1) {
+        if (task.right[r][c] !== picked.has(r + ':' + c)) return false;
+      }
+    }
+    return true;
+  }
+  return false;
+}
+
+function check(task){
+  const progress = progressOf(task.id);
+  const ok = isRight(task);
+
+  progress.attempts += 1;
+  verdict[task.id] = ok ? 'ok' : 'bad';
+
+  if (ok && !progress.done) {
+    progress.done = true;
+    bridge.solved(task.id, Math.min(progress.attempts, 99), progress.hints);
+  }
+  save();
+  paintAll();
+}
+
+function openHint(task){
+  const progress = progressOf(task.id);
+  if (progress.hints >= task.hints.length) return;
+  progress.hints += 1;
+  save();
+  paintAll();
+}
+
+function paintOptions(task, box){
+  const picked = selectionOf(task);
+  const shown = verdict[task.id];
+
+  if (task.kind === 'lines') {
+    const lines = el('div', { class: 'lines' });
+    task.options.forEach((option, index) => {
+      const chosen = picked.has(index);
+      let cls = '';
+      if (shown !== undefined) cls = option.right ? ' right' : (chosen ? ' wrong' : '');
+
+      const button = el('button', {
+        type: 'button', class: 'line' + cls, 'aria-pressed': chosen ? 'true' : 'false',
+        'data-focus': 'line:' + task.id + ':' + index,
+        onclick: () => { chosen ? picked.delete(index) : picked.add(index); verdict[task.id] = undefined; paintAll(); },
+      });
+      button.append(el('span', { text: option.text }));
+      button.append(el('span', { class: 'src', text: option.src + (shown !== undefined ? (option.right ? ' · секрет здесь' : ' · чисто') : '') }));
+      lines.append(button);
+    });
+    box.append(lines);
+    return;
+  }
+
+  if (task.kind === 'match') {
+    const wrap = el('div', { class: 'match' });
+    task.pairs.forEach((pair, index) => {
+      const select = el('select', {
+        'aria-label': pair.left, 'data-focus': 'match:' + task.id + ':' + index,
+        onchange: (event) => { picked[index] = event.target.value; verdict[task.id] = undefined; paintAll(); },
+      });
+      select.append(el('option', { value: '', text: '— выберите —' }));
+      for (const choice of task.choices) {
+        const option = el('option', { value: choice, text: choice });
+        if (picked[index] === choice) option.setAttribute('selected', '');
+        select.append(option);
+      }
+      if (shown !== undefined) select.className = picked[index] === pair.right ? 'right' : 'wrong';
+      wrap.append(el('div', { class: 'pair' }, [el('div', { class: 'left', text: pair.left }), select]));
+    });
+    box.append(wrap);
+    return;
+  }
+
+  if (task.kind === 'grid') {
+    const wrap = el('div', { class: 'table-wrap' });
+    const table = el('table', { class: 'db' });
+    const head = el('tr', {}, [el('th', { text: 'Роль' })]);
+    for (const col of task.cols) head.append(el('th', { text: col }));
+    table.append(el('thead', {}, [head]));
+
+    const body = el('tbody');
+    task.rows.forEach((row, r) => {
+      const tr = el('tr', {}, [el('th', { text: row })]);
+      task.cols.forEach((col, c) => {
+        const key = r + ':' + c;
+        const chosen = picked.has(key);
+        let cls = 'cell-btn';
+        if (shown !== undefined) cls += task.right[r][c] === chosen ? ' right' : ' wrong';
+
+        const button = el('button', {
+          type: 'button', class: cls, 'aria-pressed': chosen ? 'true' : 'false',
+          'aria-label': row + ': ' + col, text: chosen ? '✓' : '',
+          'data-focus': 'grid:' + task.id + ':' + key,
+          onclick: () => { chosen ? picked.delete(key) : picked.add(key); verdict[task.id] = undefined; paintAll(); },
+        });
+        tr.append(el('td', { class: 'mid' }, [button]));
+      });
+      body.append(tr);
+    });
+    table.append(body);
+    wrap.append(table);
+    box.append(wrap);
+    return;
+  }
+
+  const list = el('ul', { class: 'opts' });
+  task.options.forEach((option, index) => {
+    const chosen = picked.has(index);
+    let cls = '';
+    let mark = '';
+    if (shown !== undefined) {
+      if (option.right) { cls = ' right'; mark = chosen ? '✓' : 'верно'; }
+      else if (chosen) { cls = ' wrong'; mark = '✕'; }
+    }
+    const button = el('button', {
+      type: 'button', class: cls.trim(), 'aria-pressed': chosen ? 'true' : 'false',
+      'data-focus': 'opt:' + task.id + ':' + index,
+      onclick: () => {
+        if (task.kind === 'single') { const had = chosen; picked.clear(); if (!had) picked.add(index); }
+        else if (chosen) picked.delete(index);
+        else picked.add(index);
+        verdict[task.id] = undefined;
+        paintAll();
+      },
+    }, [el('span', { text: option.text })]);
+    if (mark !== '') button.append(el('span', { class: 'mk', text: mark }));
+    list.append(el('li', {}, [button]));
+  });
+  box.append(list);
+}
+
+function paintTask(task){
+  const box = document.getElementById('t-' + task.id);
+  if (box === null) return;
+
+  const progress = progressOf(task.id);
+  box.replaceChildren();
+  box.append(el('p', { class: 'sub', text: task.prompt, style: 'margin:0 0 12px' }));
+
+  paintOptions(task, box);
+
+  for (let i = 0; i < progress.hints; i += 1) {
+    box.append(el('div', { class: 'note warn', html: '<b>Подсказка ' + (i + 1) + '.</b> ' + task.hints[i] }));
+  }
+
+  const row = el('div', { class: 'form-row' });
+  row.append(el('button', {
+    type: 'button', class: 'act', 'data-focus': 'check:' + task.id,
+    text: progress.done ? 'Проверить снова' : 'Проверить',
+    onclick: () => check(task),
+  }));
+  if (progress.hints < task.hints.length) {
+    row.append(el('button', {
+      type: 'button', class: 'act ghost', 'data-focus': 'hint:' + task.id,
+      text: progress.hints === 0 ? 'Подсказка' : 'Ещё подсказка',
+      onclick: () => openHint(task),
+    }));
+  }
+  box.append(row);
+
+  if (progress.attempts > 0) {
+    const parts = ['попыток: ' + progress.attempts];
+    if (task.hints.length > 0) parts.push('подсказок: ' + progress.hints + ' из ' + task.hints.length);
+    if (progress.accepted) parts.push('зачтено в профиль');
+    box.append(el('div', { class: 'meta', text: parts.join(' · ') }));
+  }
+
+  if (verdict[task.id] === 'ok') {
+    box.append(el('div', { class: 'note ok', html: '<b>Верно.</b> ' + task.explain }));
+  }
+  if (verdict[task.id] === 'bad') {
+    box.append(el('div', { class: 'note bad', html: '<b>Пока не сходится.</b> Верное подсвечено зелёным, лишнее — красным. Поправьте и проверьте снова.' }));
+  }
+}
+
+/* ── Один вопрос десять раз ──────────────────────────────────────────── */
+
+const DET_ASKS = [
+  {
+    id: 'delivery',
+    name: 'сколько стоит доставка 2 кг в Тверь',
+    kind: 'formula',
+    answers: ['390 ₽'],
+    note: 'Формула: вес, зона, тариф. Ответ один и тот же всегда — иначе это дефект, и его чинят, а не «улучшают качество».',
+  },
+  {
+    id: 'topic',
+    name: 'к какой теме отнести обращение',
+    kind: 'model',
+    answers: ['доставка', 'доставка', 'доставка', 'возврат', 'доставка', 'оплата', 'доставка', 'доставка', 'возврат', 'доставка'],
+    note: 'Семь раз «доставка», дважды «возврат», раз «оплата». Это не поломка: обращение действительно про задержку возврата денег за недоставленный заказ — разметчики тоже разошлись бы.',
+  },
+  {
+    id: 'tone',
+    name: 'злится ли покупатель',
+    kind: 'model',
+    answers: ['спокоен', 'раздражён', 'раздражён', 'спокоен', 'раздражён', 'раздражён', 'раздражён', 'спокоен', 'раздражён', 'раздражён'],
+    note: 'Семь к трём. Там, где люди сами не сходятся во мнении, требовать от функции единственно верного ответа бессмысленно: измеряют согласие с разметкой, а не правильность.',
+  },
+];
+let detAsk = 'delivery';
+let detRuns = 0;
+
+function paintDet(){
+  const chips = document.getElementById('det-chips');
+  chips.replaceChildren();
+
+  for (const ask of DET_ASKS) {
+    chips.append(el('button', {
+      type: 'button', class: 'chip', 'aria-pressed': detAsk === ask.id ? 'true' : 'false',
+      'data-focus': 'det:' + ask.id,
+      onclick: () => { detAsk = ask.id; detRuns = 0; paintAll(); },
+    }, [el('span', { text: ask.name })]));
+  }
+
+  const ask = DET_ASKS.find((one) => one.id === detAsk);
+  const out = document.getElementById('det-out');
+  const note = document.getElementById('det-note');
+
+  if (detRuns === 0) {
+    out.textContent = 'нажмите «Спросить 10 раз»';
+    note.className = 'note';
+    note.innerHTML = '<b>Условие.</b> Вопрос один и тот же, дословно. Меняется только исполнитель: формула или модель.';
+
+    return;
+  }
+
+  const answers = ask.kind === 'formula'
+    ? Array.from({ length: 10 }, () => ask.answers[0])
+    : ask.answers;
+
+  const counts = new Map();
+  for (const answer of answers) counts.set(answer, (counts.get(answer) ?? 0) + 1);
+
+  out.textContent =
+    answers.map((answer, i) => String(i + 1).padStart(2) + '. ' + answer).join('\n') +
+    '\n\nразных ответов: ' + counts.size + '\n' +
+    [...counts.entries()].map(([answer, n]) => '  ' + answer + ' — ' + n + ' из 10').join('\n');
+
+  note.className = ask.kind === 'formula' ? 'note ok' : 'note warn';
+  note.innerHTML = '<b>Что видно.</b> ' + ask.note;
+}
+
+document.getElementById('det-run').addEventListener('click', () => { detRuns += 1; paintAll(); });
+document.getElementById('det-reset').addEventListener('click', () => { detRuns = 0; paintAll(); });
+
+/* ── Конструктор требования ──────────────────────────────────────────── */
+
+const REQ_PARTS = [
+  { id: 'set', name: 'набор: 200 реальных вопросов', text: 'на наборе из 200 реальных вопросов о доставке', need: true },
+  { id: 'bar', name: 'порог: не ниже 90%', text: 'ответ совпадает по смыслу с правилами не менее чем в 90% случаев', need: true },
+  { id: 'else', name: 'что с остальными 10%', text: 'в остальных случаях отвечает «не знаю» и передаёт оператору', need: true },
+  { id: 'model', name: 'какая модель используется', text: 'используется модель последнего поколения', need: false },
+  { id: 'speed', name: 'ответ быстрее 3 секунд', text: 'ответ приходит быстрее трёх секунд', need: false },
+  { id: 'nice', name: 'отвечает вежливо и полно', text: 'отвечает вежливо и полно', need: false },
+];
+const reqOn = new Set(['bar']);
+
+function paintReq(){
+  const chips = document.getElementById('req-chips');
+  chips.replaceChildren();
+
+  for (const part of REQ_PARTS) {
+    const on = reqOn.has(part.id);
+    chips.append(el('button', {
+      type: 'button', class: 'chip', 'aria-pressed': on ? 'true' : 'false',
+      'data-focus': 'req:' + part.id,
+      onclick: () => { on ? reqOn.delete(part.id) : reqOn.add(part.id); paintAll(); },
+    }, [el('span', { text: part.name })]));
+  }
+
+  const picked = REQ_PARTS.filter((part) => reqOn.has(part.id));
+  const missing = REQ_PARTS.filter((part) => part.need && !reqOn.has(part.id));
+
+  document.getElementById('req-out').textContent = picked.length === 0
+    ? '(требование пустое)'
+    : 'Ассистент: ' + picked.map((part) => part.text).join('; ') + '.';
+
+  document.getElementById('req-kv').innerHTML =
+    '<span class="k">принять работу</span><span class="v">' + (missing.length === 0 ? 'можно: всё проверяется' : 'нельзя') + '</span>' +
+    '<span class="k">о чём будет спор</span><span class="v">' +
+    (missing.length === 0 ? 'ни о чём — считается по набору' : missing.map((part) => ({ set: 'на чём проверяем', bar: 'какая доля достаточна', else: 'что делать с остальными' })[part.id]).join(', ')) +
+    '</span>';
+
+  const note = document.getElementById('req-note');
+  if (missing.length === 0) {
+    note.className = 'note ok';
+    note.innerHTML = '<b>Это принимаемое требование.</b> Есть набор, порог и поведение ниже порога. Лишние части — про модель и вежливость — ничему не мешают, но и не помогают: первая задаёт решение вместо результата, вторая непроверяема.';
+  } else if (reqOn.has('bar') && missing.length === 2) {
+    note.className = 'note bad';
+    note.innerHTML = '<b>Порог без набора ничего не значит.</b> Девяносто процентов — от чего? На потоке дня приёмки цифра будет одна, на вчерашнем потоке другая, и обе не повторяются.';
+  } else {
+    note.className = 'note warn';
+    note.innerHTML = '<b>Не хватает частей.</b> Без них приёмка снова превращается в спор: ' + missing.map((part) => part.name).join(', ') + '.';
+  }
+}
+
+/* ── Вопрос, на который ответа нет ───────────────────────────────────── */
+
+const FB_MODES = [
+  {
+    id: 'guess',
+    name: 'ответить уверенно',
+    dialog: '— Можно вернуть свитер, купленный по акции три месяца назад?\n— Да, конечно! Возврат возможен в течение 90 дней с момента покупки.',
+    after: 'через неделю: претензия со ссылкой на этот ответ,\nразбор в поддержке, возврат сделан «в порядке исключения»',
+    cls: 'note bad',
+    note: 'В базе знаний правила для акционных товаров нет вовсе — число «90 дней» модель составила из похожих фраз. Уверенный тон при неверном ответе опаснее прямого «не знаю»: он попадает в переписку и в претензию.',
+  },
+  {
+    id: 'silent',
+    name: 'извиниться и отправить в колл-центр',
+    dialog: '— Можно вернуть свитер, купленный по акции три месяца назад?\n— К сожалению, я не могу ответить. Позвоните, пожалуйста, по телефону 8-800-…',
+    after: 'покупатель звонит, пересказывает всё заново,\nоператор не видит ни вопроса, ни того, что уже искали',
+    cls: 'note warn',
+    note: 'Честно, но работа переложена обратно на человека, который уже потратил время. Отказ без передачи контекста — половина решения.',
+  },
+  {
+    id: 'handover',
+    name: 'сказать прямо и передать оператору',
+    dialog: '— Можно вернуть свитер, купленный по акции три месяца назад?\n— Не нашёл правила для акционных товаров. Передаю оператору — он ответит в чате, вопрос уже у него.',
+    after: 'оператор получил вопрос и найденные фрагменты,\nслучай записан в список «нет правила» → правило добавлено в базу',
+    cls: 'note ok',
+    note: 'Три части сразу: признак неуверенности сработал, человек получил понятный ответ и продолжение, случай ушёл в список пробелов. Такой список — готовый план пополнения базы знаний, и он появляется сам собой.',
+  },
+];
+let fbMode = 'guess';
+
+function paintFallback(){
+  const chips = document.getElementById('fb-chips');
+  chips.replaceChildren();
+
+  for (const mode of FB_MODES) {
+    chips.append(el('button', {
+      type: 'button', class: 'chip', 'aria-pressed': fbMode === mode.id ? 'true' : 'false',
+      'data-focus': 'fb:' + mode.id,
+      onclick: () => { fbMode = mode.id; paintAll(); },
+    }, [el('span', { text: mode.name })]));
+  }
+
+  const mode = FB_MODES.find((one) => one.id === fbMode);
+
+  document.getElementById('fb-out').textContent = mode.dialog + '\n\nчто дальше:\n' + mode.after;
+
+  const note = document.getElementById('fb-note');
+  note.className = mode.cls;
+  note.innerHTML = '<b>Что происходит.</b> ' + mode.note;
+}
+
+/* ── Порог на 400 обращениях ─────────────────────────────────────────── */
+
+let thCost = 'miss';
+
+function paintThreshold(){
+  const bar = Number(document.getElementById('th-slider').value);
+
+  const chips = document.getElementById('th-cost');
+  chips.replaceChildren();
+
+  for (const cost of [['miss', 'пропуск дороже: это претензии'], ['false', 'ложное дороже: это отмены заказов']]) {
+    chips.append(el('button', {
+      type: 'button', class: 'chip', 'aria-pressed': thCost === cost[0] ? 'true' : 'false',
+      'data-focus': 'thcost:' + cost[0],
+      onclick: () => { thCost = cost[0]; paintAll(); },
+    }, [el('span', { text: cost[1] })]));
+  }
+
+  /*
+    Модель поведения классификатора: чем выше порог, тем меньше срабатываний.
+    Числа выдуманы, но ведут себя как настоящие: кривые расходятся в разные
+    стороны, и обе не бывают нулевыми одновременно.
+  */
+  const real = 80;               // сколько обращений на неделе — настоящие претензии
+  const share = (100 - bar) / 100;
+  const caught = Math.round(real * Math.min(1, share * 1.6));
+  const missed = real - caught;
+  const falseFires = Math.round(320 * Math.max(0, share - 0.12) * 0.55);
+
+  const missCost = missed * 4200;      // потерянный покупатель
+  const falseCost = thCost === 'miss' ? falseFires * 90 : falseFires * 1800;
+
+  document.getElementById('th-out').textContent =
+    'порог уверенности:        ' + bar + '%\n' +
+    'настоящих претензий:      ' + real + '\n' +
+    'поймано:                  ' + caught + '\n' +
+    'пропущено:                ' + missed + '\n' +
+    'ложных срабатываний:      ' + falseFires;
+
+  document.getElementById('th-kv').innerHTML =
+    '<span class="k">цена пропусков</span><span class="v">' + missCost.toLocaleString('ru') + ' ₽</span>' +
+    '<span class="k">цена ложных</span><span class="v">' + falseCost.toLocaleString('ru') + ' ₽</span>' +
+    '<span class="k">итого за неделю</span><span class="v">' + (missCost + falseCost).toLocaleString('ru') + ' ₽</span>';
+
+  const note = document.getElementById('th-note');
+  if (thCost === 'miss') {
+    note.className = missed <= 8 ? 'note ok' : 'note warn';
+    note.innerHTML = '<b>Пропуск дороже.</b> Каждая непойманная жалоба — это покупатель, который больше не вернётся, а лишнее срабатывание стоит минуты оператора. Значит, порог опускают: лучше поднять лишнее, чем упустить настоящее.';
+  } else {
+    note.className = falseFires <= 20 ? 'note ok' : 'note bad';
+    note.innerHTML = '<b>Ложное дороже.</b> Автоматическая отмена заказа по ошибке разгребается неделю и злит того, кто ничего не просил. Значит, порог поднимают, а пропущенное подхватывает человек.';
+  }
+}
+
+document.getElementById('th-slider').addEventListener('input', paintAll);
+
+/* ── Поймает ли набор поломку ────────────────────────────────────────── */
+
+const SET_KINDS = [
+  { id: 'typical', name: 'типичные вопросы', catches: [] },
+  { id: 'hard', name: 'трудные и пограничные', catches: ['edge'] },
+  { id: 'refusal', name: 'случаи с верным отказом', catches: ['confident'] },
+  { id: 'expected', name: 'ожидаемый ответ у каждого', catches: ['edge', 'confident', 'facts'] },
+  { id: 'real', name: 'настоящие обращения', catches: ['facts'] },
+];
+const BUGS = [
+  { id: 'edge', name: 'сломались вопросы «два в одном»', hidden: 'на типичных вопросах всё по-прежнему хорошо' },
+  { id: 'confident', name: 'перестала отказываться и отвечает всегда', hidden: 'доля «верных» ответов даже выросла' },
+  { id: 'facts', name: 'путает сроки доставки по городам', hidden: 'формулировки красивые, числа неверные' },
+];
+const setOn = new Set(['typical']);
+let setBug = 'edge';
+
+function paintSet(){
+  const kinds = document.getElementById('set-chips');
+  kinds.replaceChildren();
+
+  for (const kind of SET_KINDS) {
+    const on = setOn.has(kind.id);
+    kinds.append(el('button', {
+      type: 'button', class: 'chip', 'aria-pressed': on ? 'true' : 'false',
+      'data-focus': 'set:' + kind.id,
+      onclick: () => { on ? setOn.delete(kind.id) : setOn.add(kind.id); paintAll(); },
+    }, [el('span', { text: kind.name })]));
+  }
+
+  const bugs = document.getElementById('set-bug');
+  bugs.replaceChildren();
+
+  for (const bug of BUGS) {
+    bugs.append(el('button', {
+      type: 'button', class: 'chip', 'aria-pressed': setBug === bug.id ? 'true' : 'false',
+      'data-focus': 'bug:' + bug.id,
+      onclick: () => { setBug = bug.id; paintAll(); },
+    }, [el('span', { text: bug.name })]));
+  }
+
+  const bug = BUGS.find((one) => one.id === setBug);
+  const catchers = SET_KINDS.filter((kind) => setOn.has(kind.id) && kind.catches.includes(setBug));
+  const caught = catchers.length > 0;
+
+  document.getElementById('set-out').textContent =
+    'в наборе: ' + (setOn.size === 0 ? 'ничего' : [...setOn].map((id) => SET_KINDS.find((k) => k.id === id).name).join(', ')) + '\n' +
+    'выкатываем версию, в которой ' + bug.name + '\n\n' +
+    'прогон набора: ' + (caught ? 'ПОЙМАЛИ до релиза' : 'всё зелено, поломка уехала в прод') + '\n' +
+    (caught ? 'поймали: ' + catchers.map((one) => one.name).join(', ') : 'почему не видно: ' + bug.hidden);
+
+  document.getElementById('set-kv').innerHTML =
+    '<span class="k">узнаем о поломке</span><span class="v">' + (caught ? 'на прогоне, за минуту' : 'от поддержки, через неделю') + '</span>';
+
+  const note = document.getElementById('set-note');
+  if (caught) {
+    note.className = 'note ok';
+    note.innerHTML = '<b>Набор сработал.</b> Ради этого он и нужен: не «показать, что всё хорошо», а поймать ухудшение до того, как его найдут покупатели.';
+  } else if (setOn.size <= 1) {
+    note.className = 'note bad';
+    note.innerHTML = '<b>Набор из типичных вопросов бесполезен.</b> Он проверяет ровно ту часть потока, которая ломается последней, и оставляет ощущение благополучия там, где его нет.';
+  } else {
+    note.className = 'note warn';
+    note.innerHTML = '<b>Эту поломку набор не видит.</b> ' + bug.hidden[0].toUpperCase() + bug.hidden.slice(1) + '. Добавьте тот тип примеров, который её бы вскрыл, — и попробуйте снова.';
+  }
+}
+
+/* ── Ответ по документам ─────────────────────────────────────────────── */
+
+const RAG_SOURCES = [
+  { id: 'rules', name: 'правила возврата' },
+  { id: 'tariffs', name: 'тарифы доставки' },
+  { id: 'cards', name: 'карточки товаров' },
+  { id: 'orders', name: 'статусы заказов (запросом)' },
+  { id: 'chat', name: 'рабочий чат сотрудников' },
+];
+const RAG_QUESTIONS = [
+  { id: 'return', name: 'сколько дней на возврат', needs: 'rules', answer: 'По правилам магазина — 14 дней с момента получения, товар без следов использования.', missing: 'Правила возврата не подключены: фактов нет, и ответ либо не даётся, либо сочиняется.' },
+  { id: 'delivery', name: 'когда привезёте в Иркутск', needs: 'tariffs', answer: 'Доставка в Иркутск — 4–6 дней, 590 ₽ при весе до 5 кг.', missing: 'Тарифы не подключены. Модель охотно назовёт «3–5 дней» — это выдумка, неотличимая на вид от факта.' },
+  { id: 'status', name: 'где мой заказ №12345', needs: 'orders', answer: 'Заказ №12345 передан курьеру сегодня в 9:40, доставка до 18:00.', missing: 'Статусы не подключены: это меняющиеся данные, их берут запросом в момент ответа, а не поиском по вчерашней копии.' },
+  { id: 'polite', name: 'перепиши ответ оператора вежливее', needs: null, answer: 'Готово: «Понимаю, ситуация неприятная. Давайте я уточню статус и вернусь с ответом сегодня же».', missing: '' },
+];
+const ragOn = new Set(['rules']);
+let ragQ = 'return';
+
+function paintRag(){
+  const box = document.getElementById('rag-src');
+  box.replaceChildren();
+
+  for (const source of RAG_SOURCES) {
+    const on = ragOn.has(source.id);
+    box.append(el('button', {
+      type: 'button', class: 'chip', 'aria-pressed': on ? 'true' : 'false',
+      'data-focus': 'rag:' + source.id,
+      onclick: () => { on ? ragOn.delete(source.id) : ragOn.add(source.id); paintAll(); },
+    }, [el('span', { text: source.name })]));
+  }
+
+  const qs = document.getElementById('rag-q');
+  qs.replaceChildren();
+
+  for (const question of RAG_QUESTIONS) {
+    qs.append(el('button', {
+      type: 'button', class: 'chip', 'aria-pressed': ragQ === question.id ? 'true' : 'false',
+      'data-focus': 'ragq:' + question.id,
+      onclick: () => { ragQ = question.id; paintAll(); },
+    }, [el('span', { text: question.name })]));
+  }
+
+  const question = RAG_QUESTIONS.find((one) => one.id === ragQ);
+  const has = question.needs === null || ragOn.has(question.needs);
+  const leak = ragOn.has('chat');
+
+  document.getElementById('rag-out').textContent =
+    'вопрос: ' + question.name + '\n' +
+    'поиск по источникам: ' + (question.needs === null ? 'не нужен — это работа с текстом' : (has ? 'найден фрагмент' : 'ничего не найдено')) + '\n\n' +
+    'ответ покупателю:\n' + (has ? question.answer : '«Не нашёл правила для этого случая. Передаю оператору.»');
+
+  const note = document.getElementById('rag-note');
+  if (leak) {
+    note.className = 'note bad';
+    note.innerHTML = '<b>В источниках лишнее.</b> Рабочий чат сотрудников рано или поздно попадёт в ответ дословно — вместе с обсуждением поставщиков и оценками покупателей. В источники кладут только то, что не страшно увидеть в ответе.';
+  } else if (has) {
+    note.className = 'note ok';
+    note.innerHTML = '<b>Ответ опирается на документ.</b> Рядом с таким ответом требуют ссылку на фрагмент: она и проверяется при разборе, и показывается покупателю, если он спросит «откуда это».';
+  } else {
+    note.className = 'note warn';
+    note.innerHTML = '<b>Так и должно быть.</b> ' + question.missing + ' Честный отказ лучше правдоподобной выдумки: выдумку обнаружат в претензии.';
+  }
+}
+
+/* ── Что уходит во внешнюю модель ────────────────────────────────────── */
+
+const OUT_PARTS = [
+  { id: 'system', name: 'системная инструкция', need: true, risk: 0, text: 'system: «Ты помощник магазина. Отвечай по документам…»' },
+  { id: 'question', name: 'вопрос покупателя', need: true, risk: 1, text: 'user: «Где мой заказ? Карта 4276 3800 1234 5678, если надо»' },
+  { id: 'chunks', name: 'найденные фрагменты', need: true, risk: 1, text: 'context: «Доставка в Иркутск — 4–6 дней, 590 ₽…»' },
+  { id: 'history', name: 'история диалога', need: false, risk: 2, text: 'history: 12 прошлых сообщений этого покупателя' },
+  { id: 'order', name: 'карточка заказа целиком', need: false, risk: 4, text: 'order: {"id":12345,"name":"Иванова А.","phone":"+7…","addr":"ул. Лесная 4, кв. 12"}' },
+];
+const outOn = new Set(['system', 'question', 'chunks']);
+const maskOn = new Set();
+
+function paintOut(){
+  const parts = document.getElementById('out-chips');
+  parts.replaceChildren();
+
+  for (const part of OUT_PARTS) {
+    const on = outOn.has(part.id);
+    parts.append(el('button', {
+      type: 'button', class: 'chip', 'aria-pressed': on ? 'true' : 'false',
+      'data-focus': 'out:' + part.id,
+      onclick: () => { on ? outOn.delete(part.id) : outOn.add(part.id); paintAll(); },
+    }, [el('span', { text: part.name })]));
+  }
+
+  const masks = document.getElementById('mask-chips');
+  masks.replaceChildren();
+
+  for (const mask of [['pan', 'маскировать номера карт'], ['pd', 'убрать имя, телефон, адрес'], ['min', 'город вместо полного адреса']]) {
+    const on = maskOn.has(mask[0]);
+    masks.append(el('button', {
+      type: 'button', class: 'chip', 'aria-pressed': on ? 'true' : 'false',
+      'data-focus': 'mask:' + mask[0],
+      onclick: () => { on ? maskOn.delete(mask[0]) : maskOn.add(mask[0]); paintAll(); },
+    }, [el('span', { text: mask[1] })]));
+  }
+
+  const lines = OUT_PARTS.filter((part) => outOn.has(part.id)).map((part) => {
+    let text = part.text;
+
+    if (maskOn.has('pan')) text = text.replace(/4276 3800 1234 5678/, '**** **** **** 5678');
+    if (maskOn.has('pd')) text = text.replace(/"name":"[^"]+","phone":"[^"]+",/, '"name":"—","phone":"—",');
+    if (maskOn.has('min')) text = text.replace(/"addr":"[^"]+"/, '"addr":"Иркутск"');
+
+    return text;
+  });
+
+  document.getElementById('out-out').textContent = lines.length === 0 ? '(пусто — модели нечего ответить)' : lines.join('\n\n');
+
+  const leaks = [];
+  if (outOn.has('question') && !maskOn.has('pan')) leaks.push('номер карты из сообщения');
+  if (outOn.has('order') && !maskOn.has('pd')) leaks.push('имя и телефон покупателя');
+  if (outOn.has('order') && !maskOn.has('min')) leaks.push('точный адрес');
+
+  const missing = OUT_PARTS.filter((part) => part.need && !outOn.has(part.id));
+
+  document.getElementById('out-kv').innerHTML =
+    '<span class="k">ассистент сможет ответить</span><span class="v">' + (missing.length === 0 ? 'да' : 'нет: не хватает ' + missing.map((p) => p.name).join(', ')) + '</span>' +
+    '<span class="k">уходит лишнего</span><span class="v">' + (leaks.length === 0 ? 'ничего' : leaks.join(', ')) + '</span>';
+
+  const note = document.getElementById('out-note');
+  if (leaks.length > 0) {
+    note.className = 'note bad';
+    note.innerHTML = '<b>Это уедет в чужой сервис.</b> Обратите внимание на номер карты: его прислал сам покупатель, и никакая подстановка контекста тут ни при чём. Чистить надо и то, что кладём мы, и то, что пришло от человека.';
+  } else if (missing.length > 0) {
+    note.className = 'note warn';
+    note.innerHTML = '<b>Слишком мало.</b> Минимизация — не «ничего не отправлять»: без инструкции, вопроса и найденных фрагментов ассистент отвечать не сможет.';
+  } else {
+    note.className = 'note ok';
+    note.innerHTML = '<b>Так и выглядит рабочий запрос.</b> Всё нужное на месте, лишнее убрано или замаскировано. Второй вопрос — к договору с поставщиком модели: хранит ли он запросы, как долго и учится ли на них.';
+  }
+}
+
+/* ── Общая отрисовка ─────────────────────────────────────────────────── */
+
+function paintAll(){
+  const keep = focusKey();
+
+  const done = TASKS.filter((t) => progressOf(t.id).done).length;
+  document.getElementById('score').textContent = 'решено ' + done + ' из ' + TASKS.length;
+  document.getElementById('bar').style.width = (done / TASKS.length) * 100 + '%';
+
+  paintTabs();
+  for (const task of TASKS) paintTask(task);
+  paintDet();
+  paintReq();
+  paintFallback();
+  paintThreshold();
+  paintSet();
+  paintRag();
+  paintOut();
+
+  restoreFocus(keep);
+}
+
+show(active);
+paintAll();
+bridge.send({ kind: 'ready' });
+</script>
+</body>
+</html>
